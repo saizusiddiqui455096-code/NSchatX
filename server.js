@@ -15,6 +15,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Max-Age', '86400');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
@@ -100,6 +101,11 @@ app.post('/api/rooms', (req, res) => {
   res.json({ roomId, username: v.username, token: issueToken(roomId, v.username) });
 });
 
+// Explicit OPTIONS handler for /api/rooms
+app.options('/api/rooms', (_req, res) => {
+  res.sendStatus(204);
+});
+
 app.post('/api/rooms/join', (req, res) => {
   const v = validate(req.body);
   if (v.error) return res.status(400).json({ error: v.error });
@@ -117,7 +123,17 @@ app.post('/api/rooms/join', (req, res) => {
   res.json({ roomId, username: v.username, token: issueToken(roomId, v.username) });
 });
 
+// Explicit OPTIONS handler for /api/rooms/join
+app.options('/api/rooms/join', (_req, res) => {
+  res.sendStatus(204);
+});
+
 app.get('/api/health', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
+
+// Explicit OPTIONS handler for /api/health
+app.options('/api/health', (_req, res) => {
+  res.sendStatus(204);
+});
 
 /* ------------------------------ WebSocket -------------------------------- */
 const server = http.createServer(app);
