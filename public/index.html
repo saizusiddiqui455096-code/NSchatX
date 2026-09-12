@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NS ChatX — private real-time rooms</title>
+    <meta
+      name="description"
+      content="Create a room with a username and password. Anyone with the same room and password joins the same live conversation."
+    />
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+    <link
+      href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&f[]=satoshi@400,500,700&f[]=jet-brains-mono@400,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ============================ AUTH / LOBBY ============================ -->
+    <main id="lobby" class="lobby">
+      <div class="lobby__grid">
+        <!-- Left: brand + explanation -->
+        <section class="brand">
+          <header class="brand__head">
+            <div class="logo" aria-label="NS ChatX home">
+              <span class="logo__word">NS ChatX</span>
+            </div>
+            <button
+              id="theme-toggle-lobby"
+              class="icon-btn"
+              type="button"
+              aria-label="Toggle colour theme"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="icon-sun">
+                <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8" />
+                <path
+                  d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="icon-moon">
+                <path
+                  d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </header>
+
+          <div class="brand__body">
+            <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> WebSocket · live</p>
+            <h1 class="brand__title">Private rooms.<br />Instant conversation.</h1>
+            <p class="brand__lede">
+              Spin up a room with a name and a password. Share both with someone — they land in the
+              exact same room, and every message moves the moment it is sent.
+            </p>
+
+            <ol class="flow" aria-label="How it works">
+              <li class="flow__step">
+                <span class="flow__num">01</span>
+                <span class="flow__label">Create or join a room</span>
+              </li>
+              <li class="flow__step">
+                <span class="flow__num">02</span>
+                <span class="flow__label">Room ID + password authenticate you</span>
+              </li>
+              <li class="flow__step">
+                <span class="flow__num">03</span>
+                <span class="flow__label">A socket opens and stays open</span>
+              </li>
+              <li class="flow__step">
+                <span class="flow__num">04</span>
+                <span class="flow__label">Messages fan out to everyone inside</span>
+              </li>
+            </ol>
+          </div>
+
+          <p class="brand__foot">
+            Rooms live in server memory only — nothing is written to disk. Empty rooms expire.
+          </p>
+        </section>
+
+        <!-- Right: auth card -->
+        <section class="card" aria-labelledby="auth-heading">
+          <div class="tabs" role="tablist" aria-label="Room mode">
+            <button
+              id="tab-join"
+              class="tab is-active"
+              role="tab"
+              aria-selected="true"
+              aria-controls="auth-form"
+              type="button"
+            >
+              Join a room
+            </button>
+            <button
+              id="tab-create"
+              class="tab"
+              role="tab"
+              aria-selected="false"
+              aria-controls="auth-form"
+              type="button"
+            >
+              Create a room
+            </button>
+          </div>
+
+          <h2 id="auth-heading" class="card__title">Join an existing room</h2>
+          <p id="auth-sub" class="card__sub">
+            Enter the room ID and password you were given, plus the name others will see.
+          </p>
+
+          <form id="auth-form" class="form" novalidate>
+            <div class="field">
+              <label for="username">Username</label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autocomplete="nickname"
+                placeholder="e.g. Shayan"
+                maxlength="24"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <div class="field__row">
+                <label for="roomId">Room ID</label>
+                <button id="gen-room" class="link-btn" type="button" hidden>Generate</button>
+              </div>
+              <input
+                id="roomId"
+                name="roomId"
+                type="text"
+                class="mono"
+                placeholder="e.g. ABC123"
+                maxlength="24"
+                autocapitalize="characters"
+                required
+              />
+              <p id="room-hint" class="hint">Case-insensitive. Letters, numbers and dashes.</p>
+            </div>
+
+            <div class="field">
+              <label for="password">Room password</label>
+              <div class="input-wrap">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="Shared secret"
+                  minlength="4"
+                  required
+                />
+                <button id="toggle-pw" class="reveal" type="button" aria-label="Show password">
+                  Show
+                </button>
+              </div>
+              <p class="hint">
+                Everyone who enters this same password reaches the same conversation.
+              </p>
+            </div>
+
+            <p id="auth-error" class="error" role="alert" hidden></p>
+
+            <button id="submit-btn" class="btn btn--primary" type="submit">
+              <span class="btn__label">Enter room</span>
+              <span class="spinner" aria-hidden="true"></span>
+            </button>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <!-- ============================== CHAT ROOM ============================== -->
+    <main id="chat" class="chat" hidden>
+      <header class="chat__bar">
+        <div class="chat__id">
+          <div class="logo logo--sm">
+            <span class="logo__word">NS ChatX</span>
+          </div>
+          <div>
+            <p class="chat__room">
+              <span class="hash">#</span><span id="room-label" class="mono">ROOM</span>
+            </p>
+            <p class="chat__meta">
+              <span id="conn-dot" class="dot dot--live" aria-hidden="true"></span>
+              <span id="conn-text">Connected</span>
+              <span class="sep">·</span>
+              <span id="online-count">1 online</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="chat__actions">
+          <button id="copy-invite" class="btn btn--ghost" type="button" aria-label="Copy room ID">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="copy-icon">
+              <rect x="9" y="9" width="11" height="11" rx="2.5" stroke="currentColor" stroke-width="1.8" />
+              <path d="M15 5.5A1.5 1.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A1.5 1.5 0 0 0 5.5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            <span class="copy-label">Copy room ID</span>
+          </button>
+          <button id="members-btn" class="icon-btn" type="button" aria-label="Show members">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="9" cy="8.5" r="3.3" stroke="currentColor" stroke-width="1.8" />
+              <path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6S14 16 14.6 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <path d="M16 6.2a3 3 0 0 1 0 5.6M17.6 14.7c1.9.5 3.2 2 3.6 4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+          <button id="theme-toggle-chat" class="icon-btn" type="button" aria-label="Toggle colour theme">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="icon-sun">
+              <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8" />
+              <path
+                d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="icon-moon">
+              <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <button id="leave-btn" class="btn btn--ghost btn--danger" type="button">Leave</button>
+        </div>
+      </header>
+
+      <div class="chat__body">
+        <section id="stream" class="stream" aria-live="polite" aria-label="Messages"></section>
+
+        <aside id="members" class="members" hidden aria-label="People in this room">
+          <p class="members__title">In this room</p>
+          <ul id="members-list" class="members__list"></ul>
+        </aside>
+      </div>
+
+      <p id="typing" class="typing" aria-live="polite"></p>
+
+      <form id="composer" class="composer">
+        <textarea
+          id="input"
+          class="composer__input"
+          rows="1"
+          maxlength="2000"
+          placeholder="Write a message…"
+          aria-label="Message"
+        ></textarea>
+        <button id="send" class="btn btn--primary btn--send" type="submit" aria-label="Send message">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 12 20 4l-3.2 8L20 20 4 12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+          </svg>
+          <span>Send</span>
+        </button>
+      </form>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
