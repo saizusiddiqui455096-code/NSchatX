@@ -1,4 +1,4 @@
-/* NS ChatX server — REST auth + WebSocket rooms. In-memory only. */
+/* NS ChatX server — real-time rooms with WebSocket communication */
 'use strict';
 
 const http = require('http');
@@ -7,18 +7,19 @@ const crypto = require('crypto');
 const express = require('express');
 const { WebSocketServer } = require('ws');
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 3000;
 const app = express();
-const staticRoot = __dirname;
+const staticRoot = path.join(__dirname, 'public');
+
 app.use(express.json({ limit: '64kb' }));
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Max-Age', '86400');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
+
 app.use(express.static(staticRoot));
 app.get('/', (_req, res) => res.sendFile(path.join(staticRoot, 'index.html')));
 app.get('*', (req, res, next) => {
@@ -27,7 +28,7 @@ app.get('*', (req, res, next) => {
 });
 
 /* ------------------------------- storage -------------------------------- */
-// rooms: id -> { salt, hash, users: Map<username, ws>, history: [], lastEmpty }
+// rooms: roomId -> { salt, hash, users: Map<username, ws>, history: [], lastEmpty }
 const rooms = new Map();
 // tokens: token -> { roomId, username, exp }
 const tokens = new Map();
@@ -39,20 +40,28 @@ const TOKEN_TTL_MS = 2 * 60 * 1000;
 function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 32).toString('hex');
 }
+
 function makeSalt() {
   return crypto.randomBytes(16).toString('hex');
 }
+
 function safeEqual(a, b) {
-  const ab = Buffer.from(a, 'hex');
-  const bb = Buffer.from(b, 'hex');
-  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+  try {
+    const ab = Buffer.from(a, 'hex');
+    const bb = Buffer.from(b, 'hex');
+    return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
+  } catch {
+    return false;
+  }
 }
+
 function randomRoomId() {
   const abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let out = '';
   for (let i = 0; i < 6; i++) out += abc[crypto.randomInt(abc.length)];
   return out;
 }
+
 function normalizeRoomId(id) {
   return String(id || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
 }
@@ -101,11 +110,6 @@ app.post('/api/rooms', (req, res) => {
   res.json({ roomId, username: v.username, token: issueToken(roomId, v.username) });
 });
 
-// Explicit OPTIONS handler for /api/rooms
-app.options('/api/rooms', (_req, res) => {
-  res.sendStatus(204);
-});
-
 app.post('/api/rooms/join', (req, res) => {
   const v = validate(req.body);
   if (v.error) return res.status(400).json({ error: v.error });
@@ -123,17 +127,7 @@ app.post('/api/rooms/join', (req, res) => {
   res.json({ roomId, username: v.username, token: issueToken(roomId, v.username) });
 });
 
-// Explicit OPTIONS handler for /api/rooms/join
-app.options('/api/rooms/join', (_req, res) => {
-  res.sendStatus(204);
-});
-
 app.get('/api/health', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
-
-// Explicit OPTIONS handler for /api/health
-app.options('/api/health', (_req, res) => {
-  res.sendStatus(204);
-});
 
 /* ------------------------------ WebSocket -------------------------------- */
 const server = http.createServer(app);
@@ -268,5 +262,5 @@ setInterval(() => {
 }, 60000);
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`NS ChatX server listening on ${PORT}`);
+  console.log(`NS ChatX server listening on http://localhost:${PORT}`);
 });
